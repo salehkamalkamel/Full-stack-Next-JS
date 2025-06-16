@@ -1,0 +1,324 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+enum UserStatus {
+  ACTIVE
+  INACTIVE
+  BANNED
+}
+
+enum UserRole {
+  USER
+  ADMIN
+  MODERATOR
+}
+
+model User {
+  id                       String          @id @default(uuid())
+  email                    String          @unique
+  name                     String
+  emailVerified            Boolean
+  image                    String?
+  createdAt                DateTime
+  updatedAt                DateTime
+  sessions                 Session[]
+  accounts                 Account[]
+  wishList                 WishListItem[]
+  cartList                 CartItem[]
+  Order                    Order[]
+  status                   UserStatus      @default(ACTIVE)
+  role                     UserRole        @default(USER)
+  banned                   Boolean?
+  banReason                String?
+  banExpires               DateTime?
+  addresses                Address[]      @relation("UserToAddress")
+  defaultShippingAddressId String?         @unique
+  defaultBillingAddressId  String?         @unique
+
+  @@map("user")
+}
+
+model Session {
+  id             String    @id
+  expiresAt      DateTime
+  token          String
+  createdAt      DateTime
+  updatedAt      DateTime
+  ipAddress      String?
+  userAgent      String?
+  userId         String
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  impersonatedBy String?
+
+  @@unique([token])
+  @@map("session")
+}
+
+model Account {
+  id                    String     @id
+  accountId             String
+  providerId            String
+  userId                String
+  user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  accessToken           String?
+  refreshToken          String?
+  idToken               String?
+  accessTokenExpiresAt  DateTime?
+  refreshTokenExpiresAt DateTime?
+  scope                 String?
+  password              String?
+  createdAt             DateTime
+  updatedAt             DateTime
+
+  @@map("account")
+}
+
+model Verification {
+  id         String     @id
+  identifier String
+  value      String
+  expiresAt  DateTime
+  createdAt  DateTime?
+  updatedAt  DateTime?
+
+  @@map("verification")
+}
+
+// --- Product Model ---
+// Represents the main product, based on the form data
+
+model Product {
+  id                                                                                      String       @id @default(cuid()) // Unique identifier (using CUID)
+  createdAt                                                                               DateTime     @default(now()) // Timestamp of creation
+  updatedAt                                                                               DateTime     @updatedAt // Timestamp of last update
+
+  // Basic Info
+  name             String // Product Name (Required)
+  sku                                                                                     String?      @unique // Stock Keeping Unit (Optional but should be unique if provided)
+  category         String // Category (Required)
+  description      String // Full Description (Required)
+  shortDescription String? // Short Description (Optional)
+
+  // Pricing & Inventory
+  price     Int // Regular Price (Use Decimal for financial values)
+  salePrice Int? // Sale Price (Optional)
+  onSale                                                                                  Boolean      @default(false) // Is the product currently on sale?
+  stock                                                                                   Int          @default(0) // Stock Quantity (Required, default to 0)
+
+  //                                                                                      Media
+  images Image[] // Relation to multiple images (One-to-Many)
+
+  //                                                                                      Details
+  releaseDate DateTime? // Release Date (Optional)
+  publisher   String? // Publisher Name (Optional)
+  developer   String? // Developer Name (Optional)
+  platforms   Platform[] // Relation to multiple platforms (Many-to-Many)
+  tags        Tag[] // Relation to multiple tags (Many-to-Many)
+  features    Feature[] // Relation to multiple key features (One-to-Many)
+
+  // Relation to WishListItem (One-to-Many)
+  wishListItems WishListItem[] // Relation to multiple wishlist items
+
+  // System Requirements
+  systemRequirements SystemRequirement[] // Relation to system requirements (One-to-Many)
+  CartItem                                                                                CartItem[]
+  OrderItem                                                                               OrderItem[]
+
+  // Optional: maps the model name to 'products' table in the DB
+  @@map("products")
+}
+
+// --- Image Model ---
+// Represents product images associated with a Product
+
+model Image {
+  id                                                                     String    @id @default(cuid())
+  createdAt                                                              DateTime  @default(now())
+
+  url     String // URL where the image is stored (e.g., CDN link, path)
+  altText String? // Optional alt text for accessibility
+
+  // Relation to Product (Many-to-One)
+  productId                                                              String
+  product                                                                Product  @relation(fields: [productId], references: [id], onDelete: Cascade) // Cascade delete: if product deleted, delete its images
+
+  // Index for faster lookups by product
+  @@index([productId])
+  @@map("images")
+}
+
+// --- Platform Model ---
+// Represents gaming platforms (PC, PS5, etc.)
+
+model Platform {
+  id       String     @id @default(cuid())
+  name     String     @unique // Platform name (e.g., "PC", "PlayStation 5")
+
+  // Relation to Product (Many-to-Many)
+  products Product[]
+
+  @@map("platforms")
+}
+
+// --- Tag Model ---
+// Represents tags associated with products (Multiplayer, Indie, etc.)
+
+model Tag {
+  id       String     @id @default(cuid())
+  name     String     @unique // Tag name (e.g., "Multiplayer", "Indie")
+
+  // Relation to Product (Many-to-Many)
+  products Product[]
+
+  @@map("tags")
+}
+
+// --- Feature Model ---
+// Represents key features listed for a product
+
+model Feature {
+  id                                                    String   @id @default(cuid())
+  description String // The text content of the feature
+
+  // Relation to Product (Many-to-One)
+  productId                                             String
+  product                                               Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@index([productId])
+  @@map("features")
+}
+
+// --- SystemRequirement Model ---
+// Represents a set of system requirements (Minimum or Recommended) for a Product
+
+model SystemRequirement {
+  id                                                                String   @id @default(cuid())
+  type RequirementType // Type: MINIMUM or RECOMMENDED
+
+  // Requirement details
+  os        String? // Operating System
+  processor String? // Processor details
+  memory    String? // Memory (RAM) details
+  graphics  String? // Graphics card details
+  storage   String? // Storage space details
+  notes     String? // Any additional notes (e.g., DirectX version)
+
+  // Relation to Product (Many-to-One)
+  productId                                                         String
+  product                                                           Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@index([productId])
+  @@map("system_requirements")
+}
+
+// --- Enum for Requirement Type ---
+
+enum RequirementType {
+  MINIMUM
+  RECOMMENDED
+}
+
+// Wish List Model 
+
+model WishListItem {
+  createdAt DateTime  @default(now()) // Timestamp of creation
+  updatedAt DateTime  @updatedAt // Timestamp of last update
+
+  id        String    @id @default(uuid())
+  productId String
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  User      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId    String
+
+  @@unique([userId, productId])
+}
+
+model CartItem {
+  createdAt DateTime  @default(now()) // Timestamp of creation
+  updatedAt DateTime  @updatedAt // Timestamp of last update
+
+  id        String    @id @default(uuid())
+  quantity  Int       @default(1)
+  productId String
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  User      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId    String
+
+  @@unique([userId, productId])
+}
+
+enum OrderStatus {
+  PENDING
+  PROCESSING
+  SHIPPED
+  DELIVERED
+  COMPLETED
+  CANCELLED
+  REFUNDED
+}
+
+model Order {
+  id                String       @id @default(uuid())
+  userId            String
+  user              User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  status            OrderStatus  @default(PENDING)
+  orderPrice        Int          @default(0)
+  shippingPrice     Int          @default(0)
+  tax               Int          @default(0)
+  deliveryDate      DateTime?    @default(now())
+  totalPrice        Int
+  createdAt         DateTime     @default(now())
+  updatedAt         DateTime     @updatedAt
+  shippingAddress   Address?    @relation("OrderToShippingAddress", fields: [shippingAddressId], references: [id])
+  shippingAddressId String?
+  billingAddress    Address?    @relation("OrderToBillingAddress", fields: [billingAddressId], references: [id])
+  billingAddressId  String?
+  orderItems        OrderItem[]
+}
+
+model OrderItem {
+  id        String    @id @default(uuid())
+  orderId   String
+  order     Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  productId String
+  product   Product  @relation(fields: [productId], references: [id])
+  quantity  Int       @default(1)
+  price     Int
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  @@unique([orderId, productId])
+}
+
+model Address {
+  id             String    @id @default(uuid())
+  firstName      String
+  lastName       String
+  address1       String
+  address2       String?
+  city           String
+  state          String
+  postalCode     String
+  country        String
+  phone          String
+  shippingOrders Order[]  @relation("OrderToShippingAddress")
+  billingOrders  Order[]  @relation("OrderToBillingAddress")
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+  user           User?    @relation("UserToAddress", fields: [userId], references: [id])
+  userId         String?
+  type           String?
+  isDefault      Boolean   @default(false)
+
+  @@map("address")
+}
