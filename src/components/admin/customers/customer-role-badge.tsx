@@ -2,7 +2,7 @@ import { Badge } from "@/components/ui/badge";
 import { UserRole } from "@prisma/client";
 
 interface CustomerRoleBadgeProps {
-  role: UserRole | null;
+  role: UserRole | null | string;
 }
 
 export function CustomerRoleBadge({ role = "USER" }: CustomerRoleBadgeProps) {
@@ -21,7 +21,9 @@ export function CustomerRoleBadge({ role = "USER" }: CustomerRoleBadgeProps) {
     },
   };
 
-  const config = roleConfig[role?.toLocaleLowerCase() as keyof typeof roleConfig] || roleConfig.user;
+  const config =
+    roleConfig[role?.toLocaleLowerCase() as keyof typeof roleConfig] ||
+    roleConfig.user;
 
   return <Badge variant={config.variant}>{config.label}</Badge>;
 }
