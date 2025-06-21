@@ -37,7 +37,7 @@ model User {
   cartList                 CartItem[]
   Order                    Order[]
   status                   UserStatus      @default(ACTIVE)
-  role                     UserRole        @default(USER)
+  role                     String
   banned                   Boolean?
   banReason                String?
   banExpires               DateTime?
