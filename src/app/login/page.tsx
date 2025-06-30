@@ -14,8 +14,8 @@ export default function LoginPage() {
   const [activeTab, setActiveTab] = useState("login");
 
   return (
-    <div className="container flex items-center justify-center py-12 md:py-16">
-      <div className="mx-auto w-full max-w-md space-y-6">
+    <div className="container flex items-center justify-center py-12 md:py-16 mx-auto border md:border-0 mt-6 rounded-lg w-72 sm:w-96 md:w-auto">
+      <div className="mx-auto w-full max-w-md space-y-6 p-4">
         <div className="text-center">
           <h1 className="text-2xl font-bold tracking-tight">
             Welcome to GameVault
